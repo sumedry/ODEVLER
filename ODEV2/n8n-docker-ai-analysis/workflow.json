@@ -1,0 +1,230 @@
+{
+  "name": "My workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Container: {{ $json.container }}\nZaman: {{ $json.timestamp }}\nLog mesajı: {{ $json.message }}\n\nBunu analiz et ve SADECE şu JSON formatında yanıt ver, başka hiçbir şey yazma:\n{\n  \"severity\": \"CRITICAL veya HIGH veya MEDIUM veya LOW veya INFO\",\n  \"summary\": \"1 cümle özet\",\n  \"root_causes\": [\"neden 1\", \"neden 2\"],\n  \"solution_steps\": [\"adım 1\", \"adım 2\"],\n  \"impact\": \"sistemin neyi etkileyebilir\"\n}",
+        "options": {
+          "systemMessage": "Sen bir DevOps uzmanısın. Docker container loglarını analiz ediyorsun. Türkçe yanıt ver. Sadece JSON döndür, başka hiçbir şey yazma."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 3.1,
+      "position": [
+        160,
+        -112
+      ],
+      "id": "8ca0d13c-87a6-4e60-b591-b7524eb519df",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": "{\n  \"type\": \"object\",\n  \"properties\": {\n    \"output\": {\n      \"type\": \"object\",\n      \"properties\": {\n        \"severity\": {\"type\": \"string\"},\n        \"summary\": {\"type\": \"string\"},\n        \"root_causes\": {\"type\": \"array\", \"items\": {\"type\": \"string\"}},\n        \"solution_steps\": {\"type\": \"array\", \"items\": {\"type\": \"string\"}},\n        \"impact\": {\"type\": \"string\"}\n      },\n      \"required\": [\"severity\", \"summary\", \"root_causes\", \"solution_steps\", \"impact\"]\n    }\n  },\n  \"required\": [\"output\"]\n}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.3,
+      "position": [
+        304,
+        64
+      ],
+      "id": "01df998a-cc9e-48fe-bc8f-61d62c86019f",
+      "name": "Structured Output Parser"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "cbf941ac-9b3c-4b4f-9680-3dbcb77a6523",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        -48,
+        -112
+      ],
+      "id": "967d0f26-70e2-4e0a-918b-cc00ab75f6f1",
+      "name": "Webhook",
+      "webhookId": "cbf941ac-9b3c-4b4f-9680-3dbcb77a6523"
+    },
+    {
+      "parameters": {
+        "model": "llama-3.3-70b-versatile",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGroq",
+      "typeVersion": 1,
+      "position": [
+        144,
+        64
+      ],
+      "id": "138a0a60-22e6-437e-abda-a85f7d8a81a5",
+      "name": "Groq Chat Model",
+      "credentials": {
+        "groqApi": {
+          "id": "sJ0EHSqnZlkKkKZU",
+          "name": "Groq account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "YOUR_DISCORD_WEBHOOK_URL",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "content",
+              "value": "=DOCKER KONTEYNIR İZLEME VE GÜVENLİK ANALİZ RAPORU\n\nSİSTEM BİLGİLERİ\nKonteynır İsmi: {{ $node[\"Webhook\"].json[\"Baslik\"] || 'Bilinmeyen Konteynır' }}\nTespit Zamanı: {{ $now.toLocaleString('tr-TR') }}\nYAPAY ZEKA ANALİZ ÖZETİ\n{{ $json.output.split('summary\": \"')[1]?.split('\"')[0] || 'Konteynır logları üzerinde derinlemesine analiz gerçekleştirilmiştir.' }}\n\nKRİTİKLİK DERECESİ\n{{ $json.output.split('severity\": \"')[1]?.split('\"')[0] || 'BİLGİ' }}\n\nTEKNİK BULGULAR VE KÖK NEDEN ANALİZİ\n{{ $json.output.split('root_causes\": [')[1]?.split(']')[0].replace(/\"/g, '').replace(/,/g, '\\n- ') || 'Herhangi bir anomali veya hata kodu saptanmamıştır.' }}\n\nOLASI SİSTEMSEL ETKİ (IMPACT)\n{{ $json.output.split('impact\": \"')[1]?.split('\"')[0] || 'Sistem kararlılığı korunmaktadır.' }}\n\nÖNERİLEN MÜDAHALE VE ÇÖZÜM ADIMLARI\n{{ $json.output.split('solution_steps\": [')[1]?.split(']')[0].replace(/\"/g, '').replace(/,/g, '\\n- ') || 'Standart operasyonel prosedürlerin takibi yeterlidir.' }}"
+            }
+          ]
+        },
+        "options": {
+          "allowUnauthorizedCerts": true
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        528,
+        0
+      ],
+      "id": "f26e7b33-bb0a-479d-b435-a41e7d56f70e",
+      "name": "HTTP Request",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "chatId": "YOUR_CHAT_ID",
+        "text": "=DOCKER KONTEYNIR İZLEME VE GÜVENLİK ANALİZ RAPORU\n\nSİSTEM BİLGİLERİ\nKonteynır İsmi: {{ $node[\"Webhook\"].json[\"Baslik\"] || 'Bilinmeyen Konteynır' }}\nTespit Zamanı: {{ $now.toLocaleString('tr-TR') }}\nYAPAY ZEKA ANALİZ ÖZETİ\n{{ $json.output.split('summary\": \"')[1]?.split('\"')[0] || 'Konteynır logları üzerinde derinlemesine analiz gerçekleştirilmiştir.' }}\n\nKRİTİKLİK DERECESİ\n{{ $json.output.split('severity\": \"')[1]?.split('\"')[0] || 'BİLGİ' }}\n\nTEKNİK BULGULAR VE KÖK NEDEN ANALİZİ\n{{ $json.output.split('root_causes\": [')[1]?.split(']')[0].replace(/\"/g, '').replace(/,/g, '\\n- ') || 'Herhangi bir anomali veya hata kodu saptanmamıştır.' }}\n\nOLASI SİSTEMSEL ETKİ (IMPACT)\n{{ $json.output.split('impact\": \"')[1]?.split('\"')[0] || 'Sistem kararlılığı korunmaktadır.' }}\n\nÖNERİLEN MÜDAHALE VE ÇÖZÜM ADIMLARI\n{{ $json.output.split('solution_steps\": [')[1]?.split(']')[0].replace(/\"/g, '').replace(/,/g, '\\n- ') || 'Standart operasyonel prosedürlerin takibi yeterlidir.' }}",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        528,
+        -352
+      ],
+      "id": "84901bb6-9eef-4717-9572-c9243ca04da4",
+      "name": "Send a text message",
+      "webhookId": "e0439d27-5614-4c5d-a4f7-d12093d89c1c",
+      "credentials": {
+        "telegramApi": {
+          "id": "89Qw89ihxTwvY9O7",
+          "name": "Telegram account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "databasePage",
+        "databaseId": {
+          "__rl": true,
+          "value": "34f3b604-8765-8076-b5d4-d21123adb486",
+          "mode": "list",
+          "cachedResultName": "Docker Log Analiz DB",
+          "cachedResultUrl": "https://www.notion.so/34f3b60487658076b5d4d21123adb486"
+        },
+        "propertiesUi": {
+          "propertyValues": [
+            {
+              "key": "Log Başlığı|title",
+              "title": "=Docker_Log_{{ $('Webhook').item.json.container }}"
+            },
+            {
+              "key": "Mesaj|rich_text",
+              "textContent": "={{ $('Webhook').item.json.body.message }}"
+            },
+            {
+              "key": "Seviye 1|rich_text",
+              "textContent": "={{ $json.output.match(/\"severity\":\\s*\"([^\"]+)\"/)[1] }}"
+            },
+            {
+              "key": "AI Analizi|rich_text",
+              "textContent": "={{ $json.output.match(/\"summary\":\\s*\"([^\"]+)\"/)[1] }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.notion",
+      "typeVersion": 2.2,
+      "position": [
+        528,
+        -192
+      ],
+      "id": "4fd80dae-db18-4dbc-b20f-10bc2d8f73a3",
+      "name": "Create a database page",
+      "credentials": {
+        "notionApi": {
+          "id": "flzOopgShitLD2uz",
+          "name": "Notion account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Structured Output Parser": {
+      "ai_outputParser": [
+        []
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Send a text message",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Create a database page",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Groq Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "9941a64a-c6aa-4c22-b131-71de016ad55e",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "53454d1f861bc72cb03a5407a7fe22aad64887c5cd38a8a9a51b3cd789296555"
+  },
+  "id": "XX3Ef8c88KbDc6nF",
+  "tags": []
+}
